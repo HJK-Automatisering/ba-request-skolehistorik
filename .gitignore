@@ -6,3 +6,6 @@ output/
 
 # Test-scripts holdes lokalt og skal ikke på GitHub
 tests/
+
+# Editor-opsætning er personlig og holdes lokalt
+.vscode/
