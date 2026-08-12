@@ -1,0 +1,29 @@
+{
+  // Bemærk: defaultInterpreterPath er KUN en fallback — den bruges, når der
+  // ikke allerede er valgt en interpreter for workspacet. Den kan derfor ikke
+  // stå alene.
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+
+  // Det er denne blok, der reelt sikrer venv'et i terminalen: ved at lægge
+  // .venv\Scripts forrest i PATH resolver `python` og `pip` til venv'et i
+  // enhver ny terminal — uafhængigt af Python-extensionen, den valgte
+  // shell-profil og af om Activate.ps1 når at køre.
+  "terminal.integrated.env.windows": {
+    "VIRTUAL_ENV": "${workspaceFolder}\\.venv",
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+  },
+
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+
+  "files.exclude": {
+    "**/__pycache__": true
+  },
+  "files.watcherExclude": {
+    "**/.venv/**": true
+  },
+  "search.exclude": {
+    "**/.venv": true
+  }
+}

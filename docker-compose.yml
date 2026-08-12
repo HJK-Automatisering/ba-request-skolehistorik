@@ -1,0 +1,27 @@
+services:
+  ba-request-skolehistorik:
+    container_name: ba-request-skolehistorik
+    # image: 'ghcr.io/hjk-automatisering/ba-request-skolehistorik:main' # Uncomment on portainer
+    build: . # Remove on portainer
+    volumes:
+      # Delt med mail-client: PDF'er lægges her og refereres ved sti i POST /send
+      - external-attachments:/shared
+      # Kun relevant med MAILER=console: her lander PDF'erne i stedet
+      - pdf-output:/data/output
+    env_file:
+      - .env # stack.env on portainer
+    restart: on-failure
+    environment:
+      - TZ=Europe/Copenhagen
+    networks:
+      - mail-client_default
+
+volumes:
+  external-attachments:
+    external: true
+    name: mail-client-external-attachments
+  pdf-output:
+
+networks:
+  mail-client_default:
+    external: true

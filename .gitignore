@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+output/
+
+# Test-scripts holdes lokalt og skal ikke på GitHub
+tests/

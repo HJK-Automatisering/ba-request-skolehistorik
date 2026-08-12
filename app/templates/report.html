@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 2.2cm 2cm;
+    @bottom-right {
+      content: "Side " counter(page) " af " counter(pages);
+      font-size: 8pt;
+      color: #777;
+    }
+  }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; color: #222; }
+  h1 { font-size: 16pt; margin-bottom: 0.2em; }
+  .meta { color: #555; font-size: 9pt; margin-bottom: 1.5em; }
+  .meta dt { font-weight: bold; float: left; clear: left; width: 9em; }
+  .meta dd { margin-left: 9.5em; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1em; table-layout: fixed; }
+  /* overflow-wrap: et usædvanligt langt skolenavn skal brydes, ikke flyde
+     ud over cellen — table-layout er fixed, så cellen udvider sig ikke */
+  th, td { border: 1px solid #bbb; padding: 4pt 6pt; text-align: left;
+           overflow-wrap: break-word; }
+  th { background: #f0f0f0; font-size: 9pt; }
+  td { font-size: 9pt; }
+  .empty { margin-top: 2em; font-style: italic; color: #666; }
+  .footer-note { margin-top: 2.5em; font-size: 8pt; color: #777; }
+</style>
+</head>
+<body>
+  <h1>Skolehistorik</h1>
+
+  <dl class="meta">
+    <dt>CPR-nummer</dt><dd>{{ request.child_cpr }}</dd>
+    <dt>Bestillings-id</dt><dd>{{ request.id }}</dd>
+    <dt>Bestilt af</dt><dd>{{ request.request_user_email }}</dd>
+    <dt>Årsag</dt><dd>{{ request.reason or "–" }}</dd>
+    <dt>Genereret</dt><dd>{{ generated_at }}</dd>
+  </dl>
+
+  {% if enrollments %}
+  <table>
+    <colgroup>
+      <!-- Skole får al overskydende plads; de øvrige er sat så overskriften
+           lige akkurat kan stå på én linje uden at blive klippet. -->
+      <col style="width: 31%">
+      <col style="width: 13.5%">
+      <col style="width: 10.5%">
+      <col style="width: 15%">
+      <col style="width: 15%">
+      <col style="width: 15%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Skole</th>
+        <th>Skoletype</th>
+        <th>Klasse</th>
+        <th>Klassetrin</th>
+        <th>Fra</th>
+        <th>Til</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in enrollments %}
+      <tr>
+        <td>{{ e.school_name or e.school_code or "" }}</td>
+        <td>{{ e.school_type_code or "" }}</td>
+        <td>{{ e.class_name or "" }}</td>
+        <td>{{ e.student_grade_level or "" }}</td>
+        <td>{{ e.from_date_id | date_id }}</td>
+        <td>{{ e.to_date_id | date_id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">Der blev ikke fundet indskrivninger for barnet.</p>
+  {% endif %}
+
+  <p class="footer-note">
+    Dette dokument indeholder personfølsomme oplysninger og skal behandles i
+    henhold til gældende retningslinjer for persondata.
+  </p>
+</body>
+</html>
