@@ -84,7 +84,7 @@ Med `MAILER=console` er den ikke nødvendig, så flowet kan testes uden den.
 Valgfrit: `POLL_INTERVAL_SECONDS` (300), `MAX_ATTEMPTS` (3), `MAILER`
 (`console`), `MAIL_SUBJECT`, `OUTPUT_DIR`, `TZ` (`Europe/Copenhagen`),
 `MAIL_API_URL` (`http://mail-client-api:8000`), `SHARED_DIR` (`/shared`),
-`MAIL_API_TIMEOUT` (30).
+`MAIL_API_TIMEOUT` (30), `LOG_LEVEL` (`INFO`).
 
 Tabelnavnene kan ikke sendes som SQL-parametre og interpoleres derfor ind i
 forespørgslerne. De valideres som `skema.tabel`-identifikatorer ved opstart,
@@ -145,6 +145,39 @@ frisk klon. Scriptet mountes ind i containeren ved kørsel:
 ```
 docker run --rm -v "$PWD/out:/out" -v "$PWD/tests:/srv/tests:ro" ba-request-skolehistorik:latest python /srv/tests/smoke_pdf.py /out
 ```
+
+## Skabeloner
+
+To filer i [app/templates/](app/templates/) styrer alt indhold og kan
+redigeres uden at røre koden:
+
+| Fil | Indhold |
+| --- | --- |
+| `report.html` | PDF'ens layout og tekst (Jinja2 + CSS, renderes med WeasyPrint) |
+| `mail_body.txt` | Mailens brødtekst (Jinja2, ren tekst) |
+
+`mail_body.txt` har adgang til `request` (bestillingens felter), `bestilt`
+(tidspunkt på dansk format) og `antal_indskrivninger`. Tilgængelige variabler
+er dokumenteret i en kommentar øverst i filen, som ikke kommer med i mailen.
+En `{%- if request.reason %}`-blok udelader linjen helt, når begrundelsen er
+tom.
+
+Mailens emne styres derimod af `MAIL_SUBJECT`, så det kan ændres i Portainer
+uden at bygge imaget om. Brødteksten kræver en genbygning.
+
+Skriv aldrig `request.child_cpr` i mailteksten — CPR hører til i den
+vedhæftede PDF.
+
+## Logning
+
+Servicens eget niveau sættes med `LOG_LEVEL` (standard `INFO`). Uafhængigt af
+det dæmpes `fontTools`, `weasyprint`, `PIL` og `urllib3` til `WARNING`, fordi
+WeasyPrints font-subsetting ellers udsender flere hundrede linjer pr. PDF.
+Advarsler og fejl fra de biblioteker slipper stadig igennem.
+
+Dæmpningen sker med et filter på log-handleren, ikke ved at sætte niveauet på
+deres loggere — fontTools sætter selv niveauet undervejs og ville overskrive
+det.
 
 ## Mailafsendelse
 

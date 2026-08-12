@@ -10,19 +10,50 @@ GDPR-bemærkning: der logges aldrig CPR-numre — kun bestillingens id.
 
 import argparse
 import logging
+import os
 import sys
 import time
 
 from . import db
 from .config import Settings, load_settings
 from .mailer import Mailer, create_mailer
-from .pdf import render_pdf
+from .pdf import render_mail_body, render_pdf
 
 log = logging.getLogger("skolehistorik")
 
 
 class CprNotFound(Exception):
     pass
+
+
+class QuietThirdParty(logging.Filter):
+    """Dropper DEBUG/INFO fra støjende biblioteker, men beholder advarsler.
+
+    WeasyPrint subsetter fonte via fontTools, som logger hvert glyph-opslag —
+    flere hundrede linjer pr. PDF. At sætte niveauet på deres loggere rækker
+    ikke: fontTools sætter selv niveauet undervejs og overskriver vores. Et
+    filter på handleren tjekkes derimod ved hver udskrivning.
+
+    Advarsler og fejl slipper igennem, så en manglende font eller ugyldig CSS
+    stadig er synlig.
+    """
+
+    NOISY = ("fontTools", "weasyprint", "PIL", "urllib3")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno >= logging.WARNING:
+            return True
+        return not record.name.startswith(self.NOISY)
+
+
+def setup_logging() -> None:
+    """Vores egne logs på LOG_LEVEL (standard INFO), tredjepart dæmpet."""
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(QuietThirdParty())
 
 
 def process_request(request: db.Request, skolekube, mailer: Mailer,
@@ -39,11 +70,7 @@ def process_request(request: db.Request, skolekube, mailer: Mailer,
     pdf = render_pdf(request, enrollments)
 
     subject = settings.mail_subject.format(request_id=request.id)
-    body = (
-        "Vedhæftet finder du den bestilte skolehistorik.\n\n"
-        f"Bestillings-id: {request.id}\n"
-        f"Bestilt: {request.timestamp:%d.%m.%Y kl. %H:%M}\n"
-    )
+    body = render_mail_body(request, enrollments)
     mailer.send(
         to=request.request_user_email,
         subject=subject,
@@ -122,10 +149,7 @@ def main() -> None:
                         help="verificér DB-adgang uden at behandle bestillinger")
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    setup_logging()
     settings = load_settings()
 
     if args.check:

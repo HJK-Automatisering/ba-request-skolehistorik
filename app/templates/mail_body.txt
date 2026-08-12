@@ -1,0 +1,24 @@
+{#- Brødteksten i mailen til bestilleren. Rediger frit — den sendes som ren
+    tekst, så der skal ikke bruges HTML.
+
+    Tilgængelige variabler:
+      request.id                  bestillingens id
+      request.reason              begrundelsen fra bestillingen (kan være tom)
+      request.request_user        brugerens initialer
+      request.request_user_email  modtageren
+      bestilt                     bestillingstidspunkt, dd.mm.yyyy kl. HH:MM
+      antal_indskrivninger        antal rækker i den vedhæftede historik
+
+    Skriv aldrig request.child_cpr ud her — CPR hører til i den vedhæftede
+    PDF, ikke i en mailtekst.
+-#}
+Vedhæftet finder du den bestilte skolehistorik.
+
+Bestillings-id: {{ request.id }}
+Bestilt: {{ bestilt }}
+Årsag: {{ request.reason }}
+
+Dokumentet indeholder personfølsomme oplysninger og skal behandles i henhold
+til gældende retningslinjer for persondata.
+
+Denne mail er afsendt automatisk og kan ikke besvares.
