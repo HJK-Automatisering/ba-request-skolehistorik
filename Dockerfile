@@ -25,4 +25,12 @@ COPY app/ ./app/
 ENV PYTHONUNBUFFERED=1
 # Uden denne kører containeren UTC, og tidsstemplet i PDF'en bliver 1-2 timer bagud
 ENV TZ=Europe/Copenhagen
+# Versionsstempel fra CI, kun til at logge hvad der koerer. Skal ligge sidst:
+# en ENV-aendring invaliderer alle efterfoelgende lag, og ligger den foer
+# pip install, mistes build-cachen ved hvert commit.
+ARG APP_VERSION=ukendt
+ARG GIT_SHA=ukendt
+ENV APP_VERSION=$APP_VERSION
+ENV GIT_SHA=$GIT_SHA
+
 CMD ["python", "-m", "app.main"]

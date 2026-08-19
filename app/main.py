@@ -150,6 +150,10 @@ def main() -> None:
     args = parser.parse_args()
 
     setup_logging()
+    # Foer load_settings: fejler konfigurationen, er versionen netop det man
+    # har brug for at kende. Lokale builds uden --build-arg viser "ukendt".
+    log.info("Version %s (%s)", os.environ.get("APP_VERSION", "ukendt"),
+             os.environ.get("GIT_SHA", "ukendt")[:7])
     settings = load_settings()
 
     if args.check:
