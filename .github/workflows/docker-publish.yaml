@@ -12,6 +12,9 @@ on:
     tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "main" ]
+  # Manuel koersel fra en vilkaarlig gren. Uden denne kan tag-reglerne kun
+  # afproeves ved at pushe til main, og et PR-build pusher ikke noget image.
+  workflow_dispatch:
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -19,6 +22,11 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
+# To hurtige pushes til main kappes ellers om at skrive :main, og den
+# langsomste build vinder. Afløs i stedet den igangværende.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -33,27 +41,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
-          cosign-release: 'v2.2.4'
+          cosign-release: 'v3.1.3'
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -63,15 +71,27 @@ jobs:
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Uden denne blok bruges standardreglerne, og et push til main giver
+          # kun det mutable :main — intet at rulle tilbage til.
+          tags: |
+            # rullende tag pr. gren: :main
+            type=ref,event=branch
+            # :pr-123, bygges men pushes ikke
+            type=ref,event=pr
+            # immutabelt pr. commit: :sha-a1b2c3d — brug dette til rollback
+            type=sha
+            # v1.2.3 -> :1.2.3 og :1.2, samt :latest via flavor latest=auto
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: ./Dockerfile
@@ -80,7 +100,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          # Portainer-vaerten er x86_64. arm64 ville bygge msodbcsql18 og
+          # pip-afhaengighederne under QEMU-emulering for ingenting.
+          platforms: linux/amd64
+          # Ender som ENV i imaget og logges ved opstart, saa Portainers
+          # log-visning viser hvilken build der koerer.
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_SHA=${{ github.sha }}
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
@@ -91,8 +118,16 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        # Trinnet bruger identity-tokenet til at faa et kortlivet certifikat
+        # fra sigstores faelles Fulcio-instans.
+        #
+        # Alle tags peger paa samme digest, saa den signeres én gang. Tidligere
+        # loeb dette over hvert tag og signerede det samme igen og igen.
+        run: |
+          # GHCR kraever smaa bogstaver, og github.repository indeholder store
+          # (HJK-Automatisering). metadata-action konverterer selv sine tags,
+          # men her bygges referencen i haanden.
+          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          cosign sign --yes "${image}@${DIGEST}"
