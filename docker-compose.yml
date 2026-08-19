@@ -1,8 +1,14 @@
 services:
   ba-request-skolehistorik:
     container_name: ba-request-skolehistorik
-    # :latest foelger nyeste version-tag. Skal en build rulles tilbage,
-    # peg i stedet paa :sha-a1b2c3d fra den paagaeldende commit.
+    # :latest følger nyeste versionstag. Vil du binde dig til en bestemt
+    # udgivelse, brug :0.1.0 i stedet.
+    #
+    # Til rollback: peg på digesten, ikke på :sha-a1b2c3d. Bygges samme commit
+    # to gange — f.eks. ved både et merge og et efterfølgende versionstag —
+    # overskrives :sha-tagget med en ny digest, fordi apt- og pip-versioner
+    # ikke er pinnede. Kun @sha256:... er uforanderlig:
+    #   ghcr.io/hjk-automatisering/ba-request-skolehistorik@sha256:deaf9472...
     # image: 'ghcr.io/hjk-automatisering/ba-request-skolehistorik:latest' # Uncomment on portainer
     build: . # Remove on portainer
     volumes:

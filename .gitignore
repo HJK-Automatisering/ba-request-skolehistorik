@@ -9,3 +9,6 @@ tests/
 
 # Editor-opsætning er personlig og holdes lokalt
 .vscode/
+
+# Kontekst til Claude Code holdes lokalt og skal ikke på GitHub
+CLAUDE.md
